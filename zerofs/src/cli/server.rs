@@ -211,14 +211,7 @@ pub async fn build_slatedb(
                 min_age: Duration::from_secs(21600),
                 ..Default::default()
             }),
-            manifest_options: Some(GarbageCollectorDirectoryOptions {
-                min_age: Duration::from_secs(21600),
-                ..Default::default()
-            }),
-            wal_options: Some(GarbageCollectorDirectoryOptions {
-                min_age: Duration::from_secs(21600),
-                ..Default::default()
-            }),
+            ..Default::default()
         }),
         ..Default::default()
     };
