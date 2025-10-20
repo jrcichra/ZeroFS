@@ -205,10 +205,19 @@ pub async fn build_slatedb(
             max_sst_size: 256 * 1024 * 1024,
             ..Default::default()
         }),
+        manifest_update_timeout: Duration::from_secs(10800),
         compression_codec: None, // Disable compression - we handle it in encryption layer
         garbage_collector_options: Some(GarbageCollectorOptions {
             compacted_options: Some(GarbageCollectorDirectoryOptions {
-                min_age: Duration::from_secs(21600),
+                min_age: Duration::from_secs(10800),
+                ..Default::default()
+            }),
+            manifest_options: Some(GarbageCollectorDirectoryOptions {
+                min_age: Duration::from_secs(10800),
+                ..Default::default()
+            }),
+            wal_options: Some(GarbageCollectorDirectoryOptions {
+                min_age: Duration::from_secs(10800),
                 ..Default::default()
             }),
             ..Default::default()
