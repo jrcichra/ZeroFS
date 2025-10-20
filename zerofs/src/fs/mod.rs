@@ -101,7 +101,7 @@ pub struct ZeroFS {
 }
 
 #[derive(Clone)]
-pub struct CacheConfig {
+pub struct SlateDBConfig {
     pub root_folder: String,
     pub max_cache_size_gb: f64,
     pub memory_cache_size_gb: Option<f64>,

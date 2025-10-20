@@ -2,7 +2,7 @@ use crate::bucket_identity;
 use crate::config::{NbdConfig, NfsConfig, NinePConfig, Settings};
 use crate::fs::permissions::Credentials;
 use crate::fs::types::SetAttributes;
-use crate::fs::{CacheConfig, ZeroFS};
+use crate::fs::{SlateDBConfig, ZeroFS};
 use crate::key_management;
 use crate::nbd::NBDServer;
 use crate::parse_object_store::parse_url_opts;
@@ -163,7 +163,7 @@ fn start_stats_reporting(fs: Arc<ZeroFS>) -> JoinHandle<()> {
 
 pub async fn build_slatedb(
     object_store: Arc<dyn object_store::ObjectStore>,
-    cache_config: &CacheConfig,
+    slatedb_config: &SlateDBConfig,
     db_path: String,
 ) -> Result<Arc<slatedb::Db>> {
     use slatedb::DbBuilder;
@@ -172,8 +172,8 @@ pub async fn build_slatedb(
     use slatedb::object_store::path::Path;
     use tokio::runtime::Runtime;
 
-    let total_disk_cache_gb = cache_config.max_cache_size_gb;
-    let total_memory_cache_gb = cache_config.memory_cache_size_gb.unwrap_or(0.25);
+    let total_disk_cache_gb = slatedb_config.max_cache_size_gb;
+    let total_memory_cache_gb = slatedb_config.memory_cache_size_gb.unwrap_or(0.25);
 
     info!(
         "Cache allocation - Disk: {:.2}GB, Memory: {:.2}GB",
@@ -187,7 +187,7 @@ pub async fn build_slatedb(
         "SlateDB in-memory block cache: {} MB",
         slatedb_memory_cache_bytes / 1_000_000
     );
-    let slatedb_cache_dir = format!("{}/slatedb", cache_config.root_folder);
+    let slatedb_cache_dir = format!("{}/slatedb", slatedb_config.root_folder);
 
     let settings = slatedb::config::Settings {
         l0_max_ssts: 16,
@@ -196,6 +196,7 @@ pub async fn build_slatedb(
             max_cache_size_bytes: Some(slatedb_object_cache_bytes),
             ..Default::default()
         },
+        manifest_update_timeout: std::time::Duration::from_secs(86400),
         flush_interval: Some(std::time::Duration::from_secs(30)),
         max_unflushed_bytes: 1024 * 1024 * 1024,
         compactor_options: Some(slatedb::config::CompactorOptions {
@@ -245,7 +246,7 @@ pub async fn build_slatedb(
 async fn initialize_filesystem(settings: &Settings) -> Result<Arc<ZeroFS>> {
     let url = settings.storage.url.clone();
 
-    let cache_config = CacheConfig {
+    let slatedb_config = SlateDBConfig {
         root_folder: settings.cache.dir.to_str().unwrap().to_string(),
         max_cache_size_gb: settings.cache.disk_size_gb,
         memory_cache_size_gb: settings.cache.memory_size_gb,
@@ -270,17 +271,17 @@ async fn initialize_filesystem(settings: &Settings) -> Result<Arc<ZeroFS>> {
 
     info!("Starting ZeroFS server with {} backend", object_store);
     info!("DB Path: {}", actual_db_path);
-    info!("Base Cache Directory: {}", cache_config.root_folder);
-    info!("Cache Size: {} GB", cache_config.max_cache_size_gb);
+    info!("Base Cache Directory: {}", slatedb_config.root_folder);
+    info!("Cache Size: {} GB", slatedb_config.max_cache_size_gb);
 
     info!("Checking bucket identity...");
     let bucket =
         bucket_identity::BucketIdentity::get_or_create(&object_store, &actual_db_path).await?;
 
-    let original_cache_root = cache_config.root_folder.clone();
-    let cache_config = CacheConfig {
+    let original_cache_root = slatedb_config.root_folder.clone();
+    let cache_config = SlateDBConfig {
         root_folder: format!("{}/{}", original_cache_root, bucket.cache_directory_name()),
-        ..cache_config
+        ..slatedb_config
     };
 
     info!(

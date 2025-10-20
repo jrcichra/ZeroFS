@@ -1,6 +1,6 @@
 use crate::cli::server::build_slatedb;
 use crate::config::Settings;
-use crate::fs::CacheConfig;
+use crate::fs::SlateDBConfig;
 use crate::key_management;
 use std::sync::Arc;
 
@@ -69,13 +69,13 @@ pub async fn change_password(
     let object_store: Arc<dyn object_store::ObjectStore> = Arc::from(object_store);
     let actual_db_path = path_from_url.to_string();
 
-    let cache_config = CacheConfig {
+    let slatedb_config = SlateDBConfig {
         root_folder: settings.cache.dir.to_str().unwrap().to_string(),
         max_cache_size_gb: settings.cache.disk_size_gb,
         memory_cache_size_gb: settings.cache.memory_size_gb,
     };
 
-    let slatedb = build_slatedb(object_store, &cache_config, actual_db_path)
+    let slatedb = build_slatedb(object_store, &slatedb_config, actual_db_path)
         .await
         .map_err(|e| PasswordError::Other(e.to_string()))?;
 
